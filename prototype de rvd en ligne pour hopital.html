@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prototype — Rendez-vous en ligne d'un hôpital</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<style>
+  :root{
+    --ink:#0b1f3a; --primary:#1856c9; --primary-dark:#0f3f96; --green:#1a9e5c; --red:#e0473c; --amber:#e08a1a;
+    --bg:#f4f6fb; --surface:#ffffff; --line:#e5e8f0; --text:#1c1e2b; --dim:#6b7086;
+    --sans:'Inter', sans-serif; --disp:'Poppins', sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:var(--sans); background:var(--bg); color:var(--text); line-height:1.6;}
+  button{font-family:inherit; cursor:pointer; border:none; background:none;}
+  .wrap{max-width:760px; margin:0 auto; padding:0 20px;}
+
+  .demo-banner{background:#fff3cd; color:#8a6414; text-align:center; font-size:12px; font-weight:600; padding:8px 12px;}
+
+  header{background:var(--ink); color:#fff; padding:20px 0;}
+  header .wrap{display:flex; align-items:center; justify-content:space-between;}
+  .brand{display:flex; align-items:center; gap:10px;}
+  .logo-badge{width:38px; height:38px; border-radius:10px; background:var(--primary); display:flex; align-items:center; justify-content:center; font-weight:800; font-family:var(--disp); font-size:15px;}
+  .brand-name{font-family:var(--disp); font-weight:700; font-size:15.5px;}
+  .brand-sub{font-size:11.5px; color:#9aa4bd;}
+
+  .role-tabs{display:flex; gap:8px;}
+  .role-tab{padding:8px 14px; border-radius:8px; font-size:12.5px; font-weight:600; color:#c7d3e6; background:rgba(255,255,255,0.08);}
+  .role-tab.active{background:var(--primary); color:#fff;}
+
+  main{padding:24px 0 60px;}
+  .card{background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:22px; margin-bottom:16px;}
+  .subtabs{display:flex; gap:8px; margin-bottom:20px;}
+  .subtab{flex:1; text-align:center; padding:10px; border-radius:9px; font-size:13px; font-weight:600; background:var(--bg); color:var(--dim); border:1px solid var(--line);}
+  .subtab.active{background:var(--ink); color:#fff; border-color:var(--ink);}
+
+  .step-title{font-family:var(--disp); font-weight:700; font-size:16.5px; margin-bottom:4px; color:var(--ink);}
+  .step-sub{font-size:13px; color:var(--dim); margin-bottom:18px;}
+
+  .opt-grid{display:flex; flex-direction:column; gap:9px;}
+  .opt{border:1.5px solid var(--line); border-radius:11px; padding:13px 15px; font-size:14px; font-weight:600;}
+  .opt.selected{border-color:var(--primary); background:rgba(24,86,201,0.05); color:var(--primary-dark);}
+
+  .date-row{display:flex; gap:8px; overflow-x:auto; padding-bottom:6px;}
+  .date-chip{flex-shrink:0; width:60px; text-align:center; padding:9px 5px; border-radius:11px; border:1.5px solid var(--line);}
+  .date-chip.selected{border-color:var(--primary); background:var(--primary); color:#fff;}
+  .date-chip .dow{font-size:10.5px; text-transform:uppercase; opacity:0.8;}
+  .date-chip .dnum{font-family:var(--disp); font-weight:700; font-size:16px; margin:2px 0;}
+  .date-chip .mon{font-size:10px; opacity:0.8;}
+
+  .slot-grid{display:grid; grid-template-columns:repeat(3, 1fr); gap:9px; margin-top:14px;}
+  .slot-btn{padding:10px 6px; border-radius:9px; border:1.5px solid var(--line); font-size:13px; font-weight:600; text-align:center;}
+  .slot-btn.selected{border-color:var(--primary); background:var(--primary); color:#fff;}
+  .slot-btn.taken{opacity:0.35; text-decoration:line-through; cursor:not-allowed;}
+
+  .field{margin-bottom:14px;}
+  .field label{font-size:12.5px; font-weight:600; color:var(--dim); display:block; margin-bottom:6px;}
+  .field input, .field select, .field textarea{width:100%; padding:11px 13px; border:1.5px solid var(--line); border-radius:9px; font-size:14px; font-family:inherit;}
+
+  .nav-btns{display:flex; gap:10px; margin-top:20px;}
+  .btn{flex:1; padding:13px; border-radius:10px; font-weight:700; font-size:14px; text-align:center;}
+  .btn.primary{background:var(--primary); color:#fff;}
+  .btn.primary:disabled, .btn.disabled{opacity:0.4; cursor:not-allowed;}
+  .btn.ghost{background:var(--bg); color:var(--text); border:1px solid var(--line); flex:0 0 auto; padding-left:18px; padding-right:18px;}
+  .btn.green{background:var(--green); color:#fff;}
+  .btn.red{background:var(--red); color:#fff;}
+
+  .ref-box{background:var(--ink); color:#fff; border-radius:14px; padding:22px; text-align:center; margin-bottom:16px;}
+  .ref-code{font-family:var(--disp); font-weight:800; font-size:24px; letter-spacing:1px; margin:10px 0;}
+  .ref-hint{font-size:12.5px; color:#b9c2d9;}
+
+  .track-input-row{display:flex; gap:8px;}
+  .track-input-row input{flex:1;}
+
+  .status-badge{display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:700; padding:6px 12px; border-radius:20px; text-transform:uppercase; letter-spacing:0.4px;}
+  .status-badge.en_attente{background:#fff3cd; color:#8a6414;}
+  .status-badge.valide{background:#d3f3e1; color:#146c43;}
+  .status-badge.refuse{background:#fde2e1; color:#a8362d;}
+
+  .request-item{border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin-bottom:10px;}
+  .request-top{display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;}
+  .request-name{font-weight:700; font-size:14.5px;}
+  .request-meta{font-size:12.5px; color:var(--dim); margin-top:3px;}
+  .request-actions{display:flex; gap:8px; margin-top:12px;}
+  .request-actions .btn{padding:9px; font-size:12.5px;}
+
+  .receipt{
+    background:#fff; border:2px dashed var(--primary); border-radius:14px; padding:24px; margin-top:16px;
+  }
+  .receipt-head{text-align:center; margin-bottom:16px; padding-bottom:16px; border-bottom:1px dashed var(--line);}
+  .receipt-hospital{font-family:var(--disp); font-weight:800; font-size:17px; color:var(--ink);}
+  .receipt-sub{font-size:11.5px; color:var(--dim); margin-top:2px;}
+  .receipt-row{display:flex; justify-content:space-between; padding:7px 0; font-size:13.5px; border-bottom:1px solid #f0f1f6;}
+  .receipt-row:last-child{border-bottom:none;}
+  .receipt-row span:first-child{color:var(--dim);}
+  .receipt-row span:last-child{font-weight:700;}
+
+  .passcode-box{max-width:340px; margin:40px auto; text-align:center;}
+  .empty-note{text-align:center; color:var(--dim); font-size:13.5px; padding:30px 0;}
+  footer{text-align:center; padding:20px 0; font-size:11.5px; color:var(--dim);}
+</style>
+</head>
+<body>
+
+<div class="demo-banner">🧪 Prototype de démonstration — données stockées localement sur cet appareil, à des fins de présentation</div>
+
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useMemo } = React;
+
+const HOSPITAL = {
+  name: "Rendez-vous en ligne d'un hôpital",
+  address: "Prototype de démonstration",
+  initials: "RV",
+};
+
+const DEPARTMENTS = [
+  "Médecine générale",
+  "Pédiatrie",
+  "Gynécologie-Obstétrique",
+  "Cardiologie",
+  "Chirurgie générale",
+  "Ophtalmologie",
+  "ORL",
+  "Dentisterie",
+  "Dermatologie",
+  "Radiologie & Imagerie",
+];
+
+const ADMIN_PASSCODE = "hopital2026";
+const STORAGE_KEY = "hopital_rdv_demo_v1";
+const DAYS_FR = ["Dim","Lun","Mar","Mer","Jeu","Ven","Sam"];
+const MONTHS_FR = ["Jan","Fév","Mar","Avr","Mai","Juin","Juil","Août","Sep","Oct","Nov","Déc"];
+
+function loadRequests() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) { return []; }
+}
+function saveRequests(list) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+}
+function genRef() {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let code = "";
+  for (let i = 0; i < 5; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  return "RDV-" + code;
+}
+function hashSlot(str) {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0;
+  return h;
+}
+function generateDates(n) {
+  const out = []; const today = new Date();
+  for (let i = 0; i < n; i++) { const d = new Date(today); d.setDate(today.getDate() + i); out.push(d); }
+  return out;
+}
+function generateSlots(dateKey) {
+  const slots = []; let mins = 8 * 60; const end = 17 * 60;
+  while (mins < end) {
+    const h = Math.floor(mins/60), m = mins%60;
+    const label = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+    const taken = (hashSlot(dateKey+label) % 6) === 0;
+    slots.push({ label, taken });
+    mins += 30;
+  }
+  return slots;
+}
+function fullDateStr(d) {
+  return `${DAYS_FR[d.getDay()]} ${d.getDate()} ${MONTHS_FR[d.getMonth()]}`;
+}
+function dateLabel(d) {
+  return { dow: DAYS_FR[d.getDay()], dnum: d.getDate(), mon: MONTHS_FR[d.getMonth()] };
+}
+
+function downloadReceiptPDF(req) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: "mm", format: [100, 150] });
+  doc.setFontSize(13); doc.setFont(undefined, "bold");
+  doc.text(HOSPITAL.name, 50, 15, { align: "center" });
+  doc.setFontSize(9); doc.setFont(undefined, "normal");
+  doc.text(HOSPITAL.address, 50, 20, { align: "center" });
+  doc.line(10, 25, 90, 25);
+  doc.setFontSize(10);
+  const rows = [
+    ["Référence", req.id],
+    ["Patient", req.nom],
+    ["Téléphone", req.telephone],
+    ["Département", req.departement],
+    ["Spécialiste", req.specialiste || "À confirmer sur place"],
+    ["Date", req.dateLabel],
+    ["Heure", req.heure],
+  ];
+  let y = 34;
+  rows.forEach(([label, val]) => {
+    doc.setFont(undefined, "bold"); doc.text(label + " :", 12, y);
+    doc.setFont(undefined, "normal"); doc.text(String(val), 45, y);
+    y += 8;
+  });
+  doc.line(10, y + 2, 90, y + 2);
+  doc.setFontSize(8);
+  doc.text("Présentez ce reçu le jour du rendez-vous.", 50, y + 10, { align: "center" });
+  doc.save(`${req.id}.pdf`);
+}
+
+function PatientNewRequest({ onSubmitted }) {
+  const [step, setStep] = useState(1);
+  const [dept, setDept] = useState(null);
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [selectedSlot, setSelectedSlot] = useState(null);
+  const [form, setForm] = useState({ nom:"", telephone:"", note:"" });
+  const [refCode, setRefCode] = useState(null);
+
+  const dates = useMemo(() => generateDates(14), []);
+  const slots = useMemo(() => {
+    if (!selectedDate) return [];
+    return generateSlots(selectedDate.toISOString().slice(0,10));
+  }, [selectedDate]);
+
+  function canNext() {
+    if (step === 1) return !!dept;
+    if (step === 2) return !!selectedDate && !!selectedSlot;
+    if (step === 3) return form.nom.trim() && form.telephone.trim();
+    return true;
+  }
+
+  function submit() {
+    const list = loadRequests();
+    const id = genRef();
+    const newReq = {
+      id, nom: form.nom.trim(), telephone: form.telephone.trim(), note: form.note.trim(),
+      departement: dept, dateLabel: fullDateStr(selectedDate), heure: selectedSlot,
+      status: "en_attente", specialiste: "", createdAt: Date.now(),
+    };
+    list.unshift(newReq);
+    saveRequests(list);
+    setRefCode(id);
+  }
+
+  if (refCode) {
+    return (
+      <div className="card">
+        <div className="ref-box">
+          <div style={{fontSize:'13px', color:'#b9c2d9'}}>Votre demande a été envoyée</div>
+          <div className="ref-code">{refCode}</div>
+          <div className="ref-hint">Notez ce code pour suivre votre demande dans l'onglet "Suivre ma demande"</div>
+        </div>
+        <div className="btn primary" onClick={() => onSubmitted()}>Retour</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="card">
+      {step === 1 && (
+        <div>
+          <div className="step-title">Choisissez un service</div>
+          <div className="step-sub">Sélectionnez le département médical souhaité.</div>
+          <div className="opt-grid">
+            {DEPARTMENTS.map((d) => (
+              <div key={d} className={"opt" + (dept===d ? " selected" : "")} onClick={() => setDept(d)}>{d}</div>
+            ))}
+          </div>
+        </div>
+      )}
+      {step === 2 && (
+        <div>
+          <div className="step-title">Choisissez une date et une heure</div>
+          <div className="step-sub">Créneaux disponibles pour {dept}.</div>
+          <div className="date-row">
+            {dates.map((d,i) => {
+              const lbl = dateLabel(d);
+              const isSel = selectedDate && selectedDate.toDateString() === d.toDateString();
+              return (
+                <div key={i} className={"date-chip"+(isSel?" selected":"")} onClick={() => {setSelectedDate(d); setSelectedSlot(null);}}>
+                  <div className="dow">{lbl.dow}</div><div className="dnum">{lbl.dnum}</div><div className="mon">{lbl.mon}</div>
+                </div>
+              );
+            })}
+          </div>
+          {selectedDate && (
+            <div className="slot-grid">
+              {slots.map((s) => (
+                <div key={s.label} className={"slot-btn"+(s.taken?" taken":"")+(selectedSlot===s.label?" selected":"")}
+                  onClick={() => { if(!s.taken) setSelectedSlot(s.label); }}>{s.label}</div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+      {step === 3 && (
+        <div>
+          <div className="step-title">Vos informations</div>
+          <div className="step-sub">Nécessaires pour traiter votre demande.</div>
+          <div className="field"><label>Nom complet</label>
+            <input value={form.nom} onChange={(e)=>setForm({...form, nom:e.target.value})} placeholder="Votre nom" />
+          </div>
+          <div className="field"><label>Téléphone</label>
+            <input value={form.telephone} onChange={(e)=>setForm({...form, telephone:e.target.value})} placeholder="+235 XX XX XX XX" />
+          </div>
+          <div className="field"><label>Note (optionnel)</label>
+            <textarea rows="3" value={form.note} onChange={(e)=>setForm({...form, note:e.target.value})} placeholder="Motif de consultation"></textarea>
+          </div>
+        </div>
+      )}
+      {step === 4 && (
+        <div>
+          <div className="step-title">Confirmez votre demande</div>
+          <div className="step-sub">Elle sera transmise à l'hôpital pour validation.</div>
+          <div className="receipt">
+            <div className="receipt-row"><span>Département</span><span>{dept}</span></div>
+            <div className="receipt-row"><span>Date</span><span>{fullDateStr(selectedDate)}</span></div>
+            <div className="receipt-row"><span>Heure</span><span>{selectedSlot}</span></div>
+            <div className="receipt-row"><span>Nom</span><span>{form.nom}</span></div>
+            <div className="receipt-row"><span>Téléphone</span><span>{form.telephone}</span></div>
+          </div>
+          <div className="btn primary" style={{marginTop:'16px'}} onClick={submit}>Envoyer la demande</div>
+        </div>
+      )}
+      <div className="nav-btns">
+        {step > 1 && <div className="btn ghost" onClick={()=>setStep(step-1)}>Retour</div>}
+        {step < 4 && <div className={"btn primary"+(!canNext()?" disabled":"")} onClick={()=>canNext() && setStep(step+1)}>Continuer</div>}
+      </div>
+    </div>
+  );
+}
+
+function PatientTrack() {
+  const [code, setCode] = useState("");
+  const [result, setResult] = useState(null);
+  const [searched, setSearched] = useState(false);
+
+  function search() {
+    const list = loadRequests();
+    const found = list.find((r) => r.id.toLowerCase() === code.trim().toLowerCase());
+    setResult(found || null);
+    setSearched(true);
+  }
+
+  return (
+    <div className="card">
+      <div className="step-title">Suivre ma demande</div>
+      <div className="step-sub">Entrez le code reçu lors de votre demande.</div>
+      <div className="track-input-row">
+        <input placeholder="Ex : RDV-A1B2C" value={code} onChange={(e)=>setCode(e.target.value)} />
+        <div className="btn primary" style={{flex:'0 0 auto', paddingLeft:'18px', paddingRight:'18px'}} onClick={search}>Vérifier</div>
+      </div>
+
+      {searched && !result && (
+        <div className="empty-note">Aucune demande trouvée avec ce code.</div>
+      )}
+
+      {result && (
+        <div style={{marginTop:'18px'}}>
+          <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'10px'}}>
+            <div style={{fontWeight:700}}>{result.id}</div>
+            <span className={"status-badge " + result.status}>
+              {result.status === "en_attente" ? "En attente" : result.status === "valide" ? "Validé" : "Refusé"}
+            </span>
+          </div>
+
+          {result.status === "en_attente" && (
+            <div className="empty-note">Votre demande est en cours de traitement par l'hôpital.</div>
+          )}
+
+          {result.status === "refuse" && (
+            <div className="empty-note">Cette demande a été refusée. Contactez l'hôpital pour plus d'informations.</div>
+          )}
+
+          {result.status === "valide" && (
+            <div className="receipt">
+              <div className="receipt-head">
+                <div className="receipt-hospital">{HOSPITAL.name}</div>
+                <div className="receipt-sub">{HOSPITAL.address}</div>
+              </div>
+              <div className="receipt-row"><span>Référence</span><span>{result.id}</span></div>
+              <div className="receipt-row"><span>Patient</span><span>{result.nom}</span></div>
+              <div className="receipt-row"><span>Département</span><span>{result.departement}</span></div>
+              <div className="receipt-row"><span>Spécialiste</span><span>{result.specialiste || "À confirmer sur place"}</span></div>
+              <div className="receipt-row"><span>Date</span><span>{result.dateLabel}</span></div>
+              <div className="receipt-row"><span>Heure</span><span>{result.heure}</span></div>
+              <div className="btn green" style={{marginTop:'16px'}} onClick={() => downloadReceiptPDF(result)}>
+                ⬇ Télécharger le reçu (PDF)
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PatientView() {
+  const [tab, setTab] = useState("new");
+  return (
+    <div className="wrap">
+      <div className="subtabs">
+        <div className={"subtab"+(tab==="new"?" active":"")} onClick={()=>setTab("new")}>Nouvelle demande</div>
+        <div className={"subtab"+(tab==="track"?" active":"")} onClick={()=>setTab("track")}>Suivre ma demande</div>
+      </div>
+      {tab === "new" ? <PatientNewRequest onSubmitted={() => setTab("track")} /> : <PatientTrack />}
+    </div>
+  );
+}
+
+function AdminView() {
+  const [authed, setAuthed] = useState(false);
+  const [pass, setPass] = useState("");
+  const [requests, setRequests] = useState([]);
+  const [filter, setFilter] = useState("en_attente");
+  const [editingId, setEditingId] = useState(null);
+  const [specialisteInput, setSpecialisteInput] = useState("");
+
+  useEffect(() => { if (authed) setRequests(loadRequests()); }, [authed]);
+
+  function refresh() { setRequests(loadRequests()); }
+
+  function validate(id) {
+    const list = loadRequests();
+    const updated = list.map((r) => r.id === id ? { ...r, status: "valide", specialiste: specialisteInput || r.specialiste } : r);
+    saveRequests(updated);
+    setEditingId(null);
+    setSpecialisteInput("");
+    refresh();
+  }
+
+  function refuse(id) {
+    const list = loadRequests();
+    const updated = list.map((r) => r.id === id ? { ...r, status: "refuse" } : r);
+    saveRequests(updated);
+    refresh();
+  }
+
+  if (!authed) {
+    return (
+      <div className="wrap">
+        <div className="passcode-box card">
+          <div className="step-title">Espace administration</div>
+          <div className="step-sub">Code d'accès réservé au personnel de l'hôpital.</div>
+          <div className="field"><input type="password" placeholder="Code d'accès" value={pass} onChange={(e)=>setPass(e.target.value)} /></div>
+          <div className="btn primary" onClick={() => { if (pass === ADMIN_PASSCODE) setAuthed(true); else alert("Code incorrect (démo : hopital2026)"); }}>
+            Se connecter
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const filtered = requests.filter((r) => r.status === filter);
+
+  return (
+    <div className="wrap">
+      <div className="subtabs">
+        {["en_attente","valide","refuse"].map((f) => (
+          <div key={f} className={"subtab"+(filter===f?" active":"")} onClick={()=>setFilter(f)}>
+            {f === "en_attente" ? "En attente" : f === "valide" ? "Validées" : "Refusées"}
+          </div>
+        ))}
+      </div>
+      <div className="card">
+        {filtered.length === 0 ? (
+          <div className="empty-note">Aucune demande dans cette catégorie.</div>
+        ) : (
+          filtered.map((r) => (
+            <div className="request-item" key={r.id}>
+              <div className="request-top">
+                <div>
+                  <div className="request-name">{r.nom} — {r.id}</div>
+                  <div className="request-meta">{r.departement} · {r.dateLabel} à {r.heure}</div>
+                  <div className="request-meta">Tél : {r.telephone}{r.note ? " · " + r.note : ""}</div>
+                </div>
+                <span className={"status-badge " + r.status}>
+                  {r.status === "en_attente" ? "En attente" : r.status === "valide" ? "Validé" : "Refusé"}
+                </span>
+              </div>
+              {r.status === "en_attente" && (
+                <div>
+                  {editingId === r.id ? (
+                    <div className="field" style={{marginTop:'8px'}}>
+                      <input placeholder="Nom du spécialiste assigné (optionnel)" value={specialisteInput} onChange={(e)=>setSpecialisteInput(e.target.value)} />
+                    </div>
+                  ) : null}
+                  <div className="request-actions">
+                    {editingId === r.id ? (
+                      <div className="btn green" onClick={() => validate(r.id)}>Confirmer la validation</div>
+                    ) : (
+                      <div className="btn green" onClick={() => { setEditingId(r.id); setSpecialisteInput(""); }}>Valider</div>
+                    )}
+                    <div className="btn red" onClick={() => refuse(r.id)}>Refuser</div>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+function App() {
+  const [role, setRole] = useState("patient");
+  return (
+    <React.Fragment>
+      <header>
+        <div className="wrap">
+          <div className="brand">
+            <div className="logo-badge">{HOSPITAL.initials}</div>
+            <div>
+              <div className="brand-name">{HOSPITAL.name}</div>
+              <div className="brand-sub">Prise de rendez-vous en ligne</div>
+            </div>
+          </div>
+          <div className="role-tabs">
+            <div className={"role-tab"+(role==="patient"?" active":"")} onClick={()=>setRole("patient")}>Patient</div>
+            <div className={"role-tab"+(role==="admin"?" active":"")} onClick={()=>setRole("admin")}>Hôpital</div>
+          </div>
+        </div>
+      </header>
+      <main>
+        {role === "patient" ? <PatientView /> : <AdminView />}
+      </main>
+      <footer>{HOSPITAL.name} — Prototype de démonstration</footer>
+    </React.Fragment>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
