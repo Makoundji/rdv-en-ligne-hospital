@@ -11,7 +11,50 @@
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getFirestore, collection, doc, setDoc, getDoc, getDocs, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
+  const firebaseConfig = {
+    apiKey: "AIzaSyA6fgNa0GgGdkYigoA068xCgObR38iGCSE",
+    authDomain: "rvd-en-ligne-pour-hopital.firebaseapp.com",
+    projectId: "rvd-en-ligne-pour-hopital",
+    storageBucket: "rvd-en-ligne-pour-hopital.firebasestorage.app",
+    messagingSenderId: "188568685343",
+    appId: "1:188568685343:web:868ab6613b9caf6b28fe2a"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  const auth = getAuth(app);
+
+  window.fbSignIn = (email, pass) => signInWithEmailAndPassword(auth, email, pass);
+  window.fbSignOut = () => signOut(auth);
+  window.fbOnAuthChange = (cb) => onAuthStateChanged(auth, cb);
+
+  window.fbAddRequest = async (req) => {
+    await setDoc(doc(db, "rendezvous", req.id), req);
+    return req.id;
+  };
+
+  window.fbGetRequest = async (id) => {
+    const snap = await getDoc(doc(db, "rendezvous", id));
+    return snap.exists() ? snap.data() : null;
+  };
+
+  window.fbGetAllRequests = async () => {
+    const snap = await getDocs(collection(db, "rendezvous"));
+    const list = [];
+    snap.forEach(d => list.push(d.data()));
+    list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    return list;
+  };
+
+  window.fbUpdateRequest = async (id, patch) => {
+    await updateDoc(doc(db, "rendezvous", id), patch);
+  };
+</script>
 <style>
   :root{
     --ink:#0b1f3a; --primary:#1856c9; --primary-dark:#0f3f96; --green:#1a9e5c; --red:#e0473c; --amber:#e08a1a;
@@ -235,18 +278,16 @@ function PatientNewRequest({ onSubmitted }) {
     return true;
   }
 
-  function submit() {
-    const list = loadRequests();
-    const id = genRef();
-    const newReq = {
-      id, nom: form.nom.trim(), telephone: form.telephone.trim(), note: form.note.trim(),
-      departement: dept, dateLabel: fullDateStr(selectedDate), heure: selectedSlot,
-      status: "en_attente", specialiste: "", createdAt: Date.now(),
-    };
-    list.unshift(newReq);
-    saveRequests(list);
-    setRefCode(id);
-  }
+  async function submit() {
+  const id = genRef();
+  const newReq = {
+    id, nom: form.nom.trim(), telephone: form.telephone.trim(), note: form.note.trim(),
+    departement: dept, dateLabel: fullDateStr(selectedDate), heure: selectedSlot,
+    status: "en_attente", specialiste: "", createdAt: Date.now(),
+  };
+  await window.fbAddRequest(newReq);
+  setRefCode(id);
+}
 
   if (refCode) {
     return (
@@ -341,12 +382,11 @@ function PatientTrack() {
   const [result, setResult] = useState(null);
   const [searched, setSearched] = useState(false);
 
-  function search() {
-    const list = loadRequests();
-    const found = list.find((r) => r.id.toLowerCase() === code.trim().toLowerCase());
-    setResult(found || null);
-    setSearched(true);
-  }
+ async function search() {
+  const found = await window.fbGetRequest(code.trim().toUpperCase());
+  setResult(found || null);
+  setSearched(true);
+}
 
   return (
     <div className="card">
@@ -416,29 +456,45 @@ function PatientView() {
 
 function AdminView() {
   const [authed, setAuthed] = useState(false);
+  const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
+  const [loginError, setLoginError] = useState("");
   const [requests, setRequests] = useState([]);
   const [filter, setFilter] = useState("en_attente");
   const [editingId, setEditingId] = useState(null);
   const [specialisteInput, setSpecialisteInput] = useState("");
 
-  useEffect(() => { if (authed) setRequests(loadRequests()); }, [authed]);
+  useEffect(() => {
+    const unsub = window.fbOnAuthChange((user) => {
+      setAuthed(!!user);
+      if (user) refresh();
+    });
+    return () => unsub && unsub();
+  }, []);
 
-  function refresh() { setRequests(loadRequests()); }
+  async function refresh() {
+    const list = await window.fbGetAllRequests();
+    setRequests(list);
+  }
 
-  function validate(id) {
-    const list = loadRequests();
-    const updated = list.map((r) => r.id === id ? { ...r, status: "valide", specialiste: specialisteInput || r.specialiste } : r);
-    saveRequests(updated);
+  async function login() {
+    setLoginError("");
+    try {
+      await window.fbSignIn(email, pass);
+    } catch (e) {
+      setLoginError("Email ou mot de passe incorrect.");
+    }
+  }
+
+  async function validate(id) {
+    await window.fbUpdateRequest(id, { status: "valide", specialiste: specialisteInput || "" });
     setEditingId(null);
     setSpecialisteInput("");
     refresh();
   }
 
-  function refuse(id) {
-    const list = loadRequests();
-    const updated = list.map((r) => r.id === id ? { ...r, status: "refuse" } : r);
-    saveRequests(updated);
+  async function refuse(id) {
+    await window.fbUpdateRequest(id, { status: "refuse" });
     refresh();
   }
 
@@ -447,11 +503,11 @@ function AdminView() {
       <div className="wrap">
         <div className="passcode-box card">
           <div className="step-title">Espace administration</div>
-          <div className="step-sub">Code d'accès réservé au personnel de l'hôpital.</div>
-          <div className="field"><input type="password" placeholder="Code d'accès" value={pass} onChange={(e)=>setPass(e.target.value)} /></div>
-          <div className="btn primary" onClick={() => { if (pass === ADMIN_PASSCODE) setAuthed(true); else alert("Code incorrect (démo : hopital2026)"); }}>
-            Se connecter
-          </div>
+          <div className="step-sub">Connexion réservée au personnel de l'hôpital.</div>
+          <div className="field"><input type="email" placeholder="Email" value={email} onChange={(e)=>setEmail(e.target.value)} /></div>
+          <div className="field"><input type="password" placeholder="Mot de passe" value={pass} onChange={(e)=>setPass(e.target.value)} /></div>
+          <div className="btn primary" onClick={login}>Se connecter</div>
+          {loginError && <div style={{color:'#e0473c', fontSize:'13px', marginTop:'8px'}}>{loginError}</div>}
         </div>
       </div>
     );
@@ -467,6 +523,7 @@ function AdminView() {
             {f === "en_attente" ? "En attente" : f === "valide" ? "Validées" : "Refusées"}
           </div>
         ))}
+        <div className="btn ghost" style={{marginLeft:'auto'}} onClick={window.fbSignOut}>Déconnexion</div>
       </div>
       <div className="card">
         {filtered.length === 0 ? (
@@ -508,7 +565,6 @@ function AdminView() {
     </div>
   );
 }
-
 function App() {
   const [role, setRole] = useState("patient");
   return (
